@@ -3,6 +3,7 @@ import axios from 'axios'
 import Filter from './components/Filter'
 import PersonForm from './components/PersonForm'
 import Persons from './components/Persons'
+import numberService from './services/numbers'
 
 
 const App = () => {
@@ -15,13 +16,11 @@ const App = () => {
 
   useEffect(() => {
     console.log('effect')
-    axios
-      .get('http://localhost:3001/persons')
-      .then(response => {
-        console.log('promise fulfilled')
-        setPersons(response.data)
-        setNewFilter(response.data.filter(person => person.name.toLowerCase().includes(newFilterValue.toLowerCase())))
-      })
+    numberService.getAll().then(initialNumbers => {
+      console.log('promise fulfilled')
+      setPersons(initialNumbers)
+      setNewFilter(initialNumbers.filter(person => person.name.toLowerCase().includes(newFilterValue.toLowerCase())))
+    })
   }, [])
   console.log('render', persons.length, 'notes')
 
@@ -32,7 +31,19 @@ const App = () => {
     )
     console.log(persons)
     if (persons.some(person => person.name === newName)) {
-      alert(`${newName} is already added to phonebook`)
+      if (window.confirm(`${newName} is already added to phonebook, replace the old number with a new one?`)) {
+        const personObject = {
+          name: newName,
+          number: newNumber,
+          id: persons.find(person => person.name === newName).id
+        }
+        numberService.update(personObject.id, personObject).then(returnedNumber => {
+          const newPersons = persons.map(person => person.id != personObject.id ? person : personObject)
+          setPersons(newPersons)
+          setNewFilter(newPersons.filter(person => person.name.toLowerCase().includes(newFilterValue.toLowerCase())))
+        })
+      }
+
     }
     else {
       const personObject = {
@@ -40,9 +51,11 @@ const App = () => {
         number: newNumber,
         id: persons.length + 1
       }
-      const newPersons = persons.concat(personObject)
-      setPersons(newPersons)
-      setNewFilter(newPersons.filter(person => person.name.toLowerCase().includes(newFilterValue.toLowerCase())))
+      numberService.create(personObject).then(returnedNumber => {
+        const newPersons = persons.concat(returnedNumber)
+        setPersons(newPersons)
+        setNewFilter(newPersons.filter(person => person.name.toLowerCase().includes(newFilterValue.toLowerCase())))
+      })
     }
 
     setNewName('')
@@ -62,6 +75,15 @@ const App = () => {
     setNewFilterValue(event.target.value)
     setNewFilter(persons.filter(person => person.name.toLowerCase().includes(event.target.value.toLowerCase())))
   }
+  const handleDeleteNumber = (id) => {
+    if (window.confirm(`Delete ${persons.find(person => person.id === id).name}?`)) {
+      numberService.remove(id).then(() => {
+        const newPersons = persons.filter(person => person.id != id)
+        setPersons(newPersons)
+        setNewFilter(newPersons.filter(person => person.name.toLowerCase().includes(newFilterValue.toLowerCase())))
+      })
+    }
+  }
   return (
     <div>
       <h2>Phonebook</h2>
@@ -69,7 +91,7 @@ const App = () => {
       <h2>add a new</h2>
       <PersonForm addNumber={addNumber} newName={newName} newNumber={newNumber} handleNameChange={handleNameChange} handleNumberChange={handleNumberChange} />
       <h2>Numbers</h2>
-      <Persons newFilter={newFilter} persons={persons} />
+      <Persons newFilter={newFilter} persons={persons} handleClick={handleDeleteNumber} />
     </div >
   )
 
