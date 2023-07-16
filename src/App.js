@@ -3,6 +3,7 @@ import axios from 'axios'
 import Filter from './components/Filter'
 import PersonForm from './components/PersonForm'
 import Persons from './components/Persons'
+import Notification from './components/Notification'
 import numberService from './services/numbers'
 
 
@@ -12,6 +13,8 @@ const App = () => {
   const [newNumber, setNewNumber] = useState('')
   const [newFilterValue, setNewFilterValue] = useState('')
   const [newFilter, setNewFilter] = useState(persons)
+  const [newErrorMessage, setNewErrorMessage] = useState(null)
+  const [success, setSuccess] = useState(false)
 
 
   useEffect(() => {
@@ -41,6 +44,11 @@ const App = () => {
           const newPersons = persons.map(person => person.id != personObject.id ? person : personObject)
           setPersons(newPersons)
           setNewFilter(newPersons.filter(person => person.name.toLowerCase().includes(newFilterValue.toLowerCase())))
+          setSuccess(true)
+          setNewErrorMessage(`Updated ${newName}`)
+          setTimeout(() => {
+            setNewErrorMessage(null)
+          }, 5000)
         })
       }
 
@@ -48,13 +56,17 @@ const App = () => {
     else {
       const personObject = {
         name: newName,
-        number: newNumber,
-        id: persons.length + 1
+        number: newNumber
       }
       numberService.create(personObject).then(returnedNumber => {
         const newPersons = persons.concat(returnedNumber)
         setPersons(newPersons)
         setNewFilter(newPersons.filter(person => person.name.toLowerCase().includes(newFilterValue.toLowerCase())))
+        setSuccess(true)
+        setNewErrorMessage(`Added ${newName}`)
+        setTimeout(() => {
+          setNewErrorMessage(null)
+        }, 5000)
       })
     }
 
@@ -76,17 +88,25 @@ const App = () => {
     setNewFilter(persons.filter(person => person.name.toLowerCase().includes(event.target.value.toLowerCase())))
   }
   const handleDeleteNumber = (id) => {
-    if (window.confirm(`Delete ${persons.find(person => person.id === id).name}?`)) {
+    const deletedNumber = persons.find(person => person.id === id).name
+    if (window.confirm(`Delete ${deletedNumber}?`)) {
       numberService.remove(id).then(() => {
         const newPersons = persons.filter(person => person.id != id)
         setPersons(newPersons)
         setNewFilter(newPersons.filter(person => person.name.toLowerCase().includes(newFilterValue.toLowerCase())))
+      }).catch(error => {
+        setSuccess(false)
+        setNewErrorMessage(`Information of  ${deletedNumber} has already been removed from server`)
+        setTimeout(() => {
+          setNewErrorMessage(null)
+        }, 5000)
       })
     }
   }
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification message={newErrorMessage} success={success} />
       <Filter newFilterValue={newFilterValue} handleFilterChange={handleFilterChange} />
       <h2>add a new</h2>
       <PersonForm addNumber={addNumber} newName={newName} newNumber={newNumber} handleNameChange={handleNameChange} handleNumberChange={handleNumberChange} />
